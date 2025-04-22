@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>เกมตารางรายรับรายจ่าย</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Comic Sans MS', sans-serif;
+            background-color: #f0f8ff;
+            text-align: center;
+            margin: 0;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #ff7f50;
+        }
+
+        select,
+        button,
+        input {
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #aaa;
+            margin: 5px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #ff7f50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto; /* Scroll horizontally if needed */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        #balanceTable th {
+            text-align: center;
+        }
+
+        th,
+        td {
+            border: 2px solid #87ceeb;
+            padding: 8px;
+            text-align: right;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
+        }
+
+        th {
+            background-color: #87ceeb;
+            color: white;
+        }
+
+        .card {
+            background-color: #ffebcd;
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            max-width: 80px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🍬 ร้านลูกกวาด 🍬</h1>
+        <div id="setup">
+            <label>เลือกชื่อเจ้าของร้าน:</label>
+            <select id="childName">
+                <option>เมย์</option>
+                <option>ต้นข้าว</option>
+                <option>วิน</option>
+                <option>แตงโม</option>
+            </select>
+            <br>
+            <label><input type="checkbox" id="includeSatang"> จำนวนเงินไม่เต็มบาท (รวมสตางค์)</label>
+            <br>
+            <button onclick="startGame()">เริ่มเกม</button>
+        </div>
+
+        <div id="game" class="hidden">
+            <h2 id="balanceReveal"></h2>
+            <button id="drawCardBtn" onclick="startAccounting()">เริ่มทำบัญชีรายรับรายจ่าย 📒</button>
+
+            <div id="cardArea"></div>
+
+            <div id="balanceTableArea"></div>
+
+            <button id="submitBtn" onclick="submitEntry()" class="hidden" disabled>ส่งคำตอบ</button>
+            <div id="feedback"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentBalance, includeSatang, currentAmount, currentEvent;
+        let eventTypes = [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("setup").classList.remove("hidden");
+        });
+
+        function randomInitialBalance() {
+            return 20 * (Math.floor(Math.random() * (80 - 60 + 1)) + 60);
+        }
+
+        function formatAmount(amount) {
+            return includeSatang ? amount.toFixed(2) : amount;
+        }
+
+        function startGame() {
+            const child = document.getElementById("childName").value;
+            includeSatang = document.getElementById("includeSatang").checked;
+            currentBalance = randomInitialBalance();
+
+            eventTypes = [
+                { event: child + "ซื้อของมาไว้ขาย", type: "expense" },
+                { event: child + "ขายลูกอมได้", type: "income" },
+                { event: child + "ฝากเงินธนาคารได้ดอกเบี้ย", type: "income" },
+                { event: child + "ซื้อของเล่นมาไว้ขาย", type: "expense" }
+            ];
+
+            document.getElementById("balanceReveal").textContent = child + "มีเงินเก็บมาลงทุน " + formatAmount(currentBalance) + " บาท! 🥳";
+            document.getElementById("setup").classList.add("hidden");
+            document.getElementById("game").classList.remove("hidden");
+
+        }
+
+        function startAccounting() {
+            drawTable(); // Now the table appears here
+            const child = document.getElementById("childName").value;
+            addToTable(child + "มีเงินเก็บมาลงทุน", currentBalance, true);
+
+            document.getElementById("balanceReveal").textContent = "";
+
+            // Change button behavior to draw card
+            const drawBtn = document.getElementById("drawCardBtn");
+            drawBtn.textContent = "เปิดการ์ดเหตุการณ์ 🎴";
+            drawBtn.onclick = drawCard;
+            drawBtn.disabled = false;
+        }
+
+        function drawTable() {
+            const tableArea = document.getElementById("balanceTableArea");
+            tableArea.innerHTML = `
+            <div class="table-container">
+                <table id="balanceTable">
+                    <tr>
+                        <th>รายการ</th>
+                        <th>รายรับ (บาท)</th>
+                        <th>รายจ่าย (บาท)</th>
+                        <th>คงเหลือ (บาท)</th>
+                    </tr>
+                </table>
+            </div>
+        `;
+        }
+
+        function drawCard() {
+            document.getElementById("feedback").textContent = "";
+
+            const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+            currentEvent = randomEvent.event;
+            currentEventType = randomEvent.type; // use this to clearly track income or expense
+
+            currentAmount = Math.floor(Math.random() * (currentBalance / 2)) + 20;
+            if (includeSatang) currentAmount += Math.round(Math.random() * 99) / 100;
+
+            const cardDiv = document.createElement("div");
+            cardDiv.className = "card";
+            cardDiv.textContent = currentEvent + " เป็นเงิน " + formatAmount(currentAmount) + " บาท";
+            document.getElementById("cardArea").innerHTML = "";
+            document.getElementById("cardArea").appendChild(cardDiv);
+
+            addToTable(currentEvent, currentAmount, false);
+            document.getElementById("drawCardBtn").disabled = true;
+            document.getElementById("submitBtn").classList.remove("hidden");
+        }
+
+        function addToTable(event, amount, isInitial) {
+            const table = document.getElementById("balanceTable");
+            const newRow = table.insertRow();
+            newRow.insertCell().textContent = event;
+
+            if (isInitial) {
+                newRow.insertCell().textContent = formatAmount(amount);
+                newRow.insertCell().textContent = '';
+                newRow.insertCell().textContent = formatAmount(amount);
+            } else {
+                const step = includeSatang ? '0.01' : '1';
+                const pattern = includeSatang ? '^[0-9]+(\\.[0-9]{1,2})?$' : '\\d+';
+
+                newRow.insertCell().innerHTML = `<input type="number" step="${step}" min="0" pattern="${pattern}" onchange="enableSubmit()">`;
+                newRow.insertCell().innerHTML = `<input type="number" step="${step}" min="0" pattern="${pattern}" onchange="enableSubmit()">`;
+                newRow.insertCell().innerHTML = `<input type="number" step="${step}" min="0" pattern="${pattern}" onchange="enableSubmit()">`;
+            }
+        }
+
+        function enableSubmit() {
+            document.getElementById("submitBtn").disabled = false;
+            document.getElementById("feedback").textContent = "";
+        }
+
+        function submitEntry() {
+            const inputs = document.querySelectorAll('#balanceTable tr:last-child input');
+            const incomeInput = inputs[0].value ? parseFloat(inputs[0].value) : null;
+            const expenseInput = inputs[1].value ? parseFloat(inputs[1].value) : null;
+            const enteredBalance = parseFloat(inputs[2].value);
+            const correctBalance = currentBalance + incomeInput - expenseInput;
+
+            const isIncomeEvent = currentEventType === "income";
+            const isExpenseEvent = currentEventType === "expense";
+
+            console.log({
+                currentEvent,
+                currentAmount,
+                incomeInput,
+                expenseInput,
+                enteredBalance,
+                correctBalance,
+                currentBalance,
+                isIncomeEvent,
+                isExpenseEvent
+            });
+
+            let feedbackMsg = "";
+
+            if (isIncomeEvent && expenseInput > 0 || isExpenseEvent && incomeInput > 0) {
+                feedbackMsg = "ดูอีกทีว่าเหตุการณ์นี้เป็นรายรับหรือรายจ่าย";
+            } else if (isIncomeEvent && incomeInput !== currentAmount) {
+                feedbackMsg = "จำนวนเงินรายรับ ไม่ถูกต้อง";
+            } else if (isExpenseEvent && expenseInput !== currentAmount) {
+                feedbackMsg = "จำนวนเงินรายจ่าย ไม่ถูกต้อง";
+            } else if (enteredBalance !== correctBalance) {
+                feedbackMsg = "ยอดคงเหลือไม่ถูกต้อง ลองใหม่อีกครั้ง";
+            } else {
+                feedbackMsg = "เก่งมาก! ถูกต้อง 🎉";
+                currentBalance = correctBalance;
+                document.getElementById("drawCardBtn").disabled = false;
+                document.getElementById("submitBtn").disabled = true;
+
+                const lastRowCells = document.querySelectorAll('#balanceTable tr:last-child td');
+                lastRowCells[1].textContent = incomeInput ? formatAmount(incomeInput) : '';
+                lastRowCells[2].textContent = expenseInput ? formatAmount(expenseInput) : '';
+                lastRowCells[3].textContent = formatAmount(correctBalance);
+            }
+
+            document.getElementById("feedback").textContent = feedbackMsg;
+        }
+
+    </script>
+</body>
+
+</html>
